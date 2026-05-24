@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ma séance de sport - musique & timer</title>
+  <link rel="icon" href="icon.icns" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    /* ── DARK THEME (défaut) ── */
+    :root,
+    html[data-theme="dark"] {
+      --bg-panel: rgba(0, 0, 0, 0.28);
+      --bg-card: rgba(255, 255, 255, 0.08);
+      --bg-center: rgba(0, 0, 0, 0.52);
+      --bg-header: rgba(0,0,0,0.12);
+      --bg-summary: rgba(0,0,0,0.12);
+      --bg-player: rgba(0, 0, 0, 0.28);
+      --border: rgba(255, 255, 255, 0.18);
+      --border-plan: rgba(255,255,255,.08);
+      --text: #ffffff;
+      --text-header: #ffffff;
+      --muted: #d4d8dd;
+      --muted2: #aeb6c2;
+      --orange: #ff9800;
+      --red: #ff2e2e;
+      --green: #3ddc84;
+      --button: rgba(255, 255, 255, 0.14);
+      --button-hover: rgba(255, 255, 255, 0.24);
+      --input-bg: rgba(255, 255, 255, 0.12);
+      --input-color: #ffffff;
+      --select-opt-bg: #1f2630;
+      --pill-bg: rgba(255,255,255,0.08);
+      --tag-bg: rgba(255,255,255,0.12);
+      --tag-color: #ffffff;
+      --summary-border: rgba(255, 255, 255, 0.18);
+      --summary-line-border: rgba(255,255,255,0.09);
+      --plan-row-strong: #ffffff;
+      --exercise-pick-span: #ffffff;
+      --toggle-bg: rgba(0,0,0,0.22);
+      --warning-color: #ffd48a;
+      --phase-color: var(--muted);
+      --timer-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      --bg-image: url("./image_de_fond.png");
+      --assets-folder: "Assets_dark";
+    }
+
+    /* ── LIGHT THEME ── */
+    html[data-theme="light"] {
+      --bg-panel: rgba(255, 255, 255, 0.72);
+      --bg-card: rgba(255, 255, 255, 0.82);
+      --bg-center: rgba(255, 255, 255, 0.62);
+      --bg-header: rgba(255,255,255,0.55);
+      --bg-summary: rgba(255,255,255,0.55);
+      --bg-player: rgba(0, 0, 0, 0.08);
+      --border: rgba(0, 0, 0, 0.14);
+      --border-plan: rgba(0,0,0,0.09);
+      --text: #1a1f2e;
+      --text-header: #1a1f2e;
+      --muted: #4a5568;
+      --muted2: #718096;
+      --orange: #e07000;
+      --red: #cc1b1b;
+      --green: #1a9e55;
+      --button: rgba(0, 0, 0, 0.08);
+      --button-hover: rgba(0, 0, 0, 0.15);
+      --input-bg: rgba(0, 0, 0, 0.05);
+      --input-color: #1a1f2e;
+      --select-opt-bg: #f0f2f5;
+      --pill-bg: rgba(0,0,0,0.05);
+      --tag-bg: rgba(0,0,0,0.08);
+      --tag-color: #1a1f2e;
+      --summary-border: rgba(0, 0, 0, 0.14);
+      --summary-line-border: rgba(0,0,0,0.08);
+      --plan-row-strong: #1a1f2e;
+      --exercise-pick-span: #1a1f2e;
+      --toggle-bg: rgba(255,255,255,0.7);
+      --warning-color: #8a6000;
+      --phase-color: var(--muted);
+      --timer-shadow: 0 8px 30px rgba(0,0,0,0.15);
+      --bg-image: url("./image_de_fond_light.png");
+      --assets-folder: "Assets";
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { margin: 0; min-height: 100vh; }
+
+    body {
+      background-image: var(--bg-image);
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      transition: background-image 0.3s ease, color 0.3s ease;
+    }
+
+    .app-header {
+      width: 100%;
+      text-align: center;
+      padding: 14px 16px 8px;
+      box-sizing: border-box;
+      background: var(--bg-header);
+      backdrop-filter: blur(8px);
+      transition: background 0.3s ease;
+    }
+
+    .app-header h1 {
+      margin: 0;
+      font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      color: var(--text-header);
+      text-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 370px 1fr minmax(390px, 28vw);
+      height: calc(100vh - 58px);
+      transition: grid-template-columns 0.25s ease;
+      background: transparent !important;
+    }
+
+    .app.left-hidden { grid-template-columns: 0 1fr minmax(390px, 28vw); }
+    aside, main, section { min-width: 0; min-height: 0; }
+
+    .left-panel {
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+      transition: opacity 0.25s ease, background 0.3s ease;
+      backdrop-filter: blur(12px);
+    }
+
+    .app.left-hidden .left-panel { opacity: 0; pointer-events: none; }
+
+    .left-content {
+      width: 370px;
+      height: 100%;
+      padding: 14px 16px 22px;
+      overflow-y: auto;
+    }
+
+    .center-panel {
+      position: relative;
+      background: var(--bg-center);
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      gap: 14px;
+      overflow-y: auto;
+      transition: background 0.3s ease;
+      backdrop-filter: blur(8px);
+    }
+
+    .right-panel {
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 20px;
+      overflow-y: auto;
+    }
+
+    h1, h2, h3 { margin: 0 0 12px 0; font-weight: 700; }
+    h1, h2, h3, summary { font-family: "Trebuchet MS", Arial, Helvetica, sans-serif; }
+    h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.6px; }
+    h2 { font-size: 20px; font-weight: 800; letter-spacing: 0.6px; }
+    h3 { font-size: 16px; color: var(--muted); font-weight: 800; letter-spacing: 0.6px; }
+
+    .param-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      margin: 10px 0;
+      overflow: hidden;
+    }
+
+    .param-section summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 12px 13px;
+      color: var(--text);
+      font-weight: 800;
+      letter-spacing: 0.25px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .param-section summary::after { content: "▾"; color: var(--muted); }
+    .param-section:not([open]) summary::after { content: "▸"; }
+    .section-body { padding: 0 13px 13px; }
+
+    label {
+      display: block;
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.25;
+    }
+
+    input, select {
+      width: 100%;
+      margin-top: 5px;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--input-bg);
+      color: var(--input-color);
+      font-size: 14px;
+      outline: none;
+      transition: background 0.3s ease, color 0.3s ease, border-color 0.2s ease;
+    }
+
+    select option { background: var(--select-opt-bg); color: var(--input-color); }
+    input:focus, select:focus { border-color: var(--muted2); }
+
+    .time-row, .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+    .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 8px; }
+    .check-pill, .radio-pill {
+      display: flex;
+      gap: 7px;
+      align-items: center;
+      padding: 8px 9px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--pill-bg);
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    .check-pill input, .radio-pill input { width: auto; margin: 0; }
+
+    button {
+      border: 1px solid var(--border);
+      background: var(--button);
+      color: var(--text);
+      padding: 11px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+    button:hover { background: var(--button-hover); }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .small-btn { width: 100%; margin-top: 10px; font-size: 13px; padding: 9px 10px; }
+    .primary-btn { background: rgba(61, 220, 132, 0.28); border-color: rgba(61, 220, 132, 0.5); }
+
+    .toggle-left {
+      position: absolute;
+      z-index: 20;
+      top: 16px;
+      left: 16px;
+      width: 42px;
+      height: 42px;
+      padding: 0;
+      border-radius: 50%;
+      font-size: 22px;
+      line-height: 1;
+      background: var(--toggle-bg);
+    }
+
+    .youtube-card { width: 100%; max-width: 980px; margin: 0 auto; }
+    .player-wrap {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--bg-player);
+    }
+    #youtube-player, #youtube-player iframe, .player-wrap iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+    .exercise-stage {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.25fr);
+      gap: 16px;
+      align-items: stretch;
+      max-width: 980px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .exercise-info, .exercise-visual, .diagnostic-card, .session-plan-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+      transition: background 0.3s ease;
+    }
+
+    .overline {
+      text-transform: uppercase;
+      color: var(--muted2);
+      font-size: 12px;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+      font-weight: 800;
+    }
+
+    .exercise-name { font-size: clamp(28px, 3.2vw, 48px); font-weight: 900; line-height: 1.02; margin: 0 0 12px; }
+    .next-exercise { font-size: 20px; color: var(--muted); font-weight: 700; line-height: 1.25; }
+    .exercise-tags { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+    .tag { font-size: 12px; color: var(--tag-color); background: var(--tag-bg); border: 1px solid var(--border); border-radius: 999px; padding: 5px 8px; }
+
+    .exercise-visual { display: flex; align-items: center; justify-content: center; min-height: 250px; }
+    .exercise-visual img { max-width: 100%; max-height: 360px; object-fit: contain; border-radius: 14px; background: rgba(255,255,255,0.92); }
+    .image-placeholder { color: var(--muted); text-align: center; line-height: 1.45; }
+
+    .below-center {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      max-width: 980px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .diagnostic-status { font-size: 17px; font-weight: 900; margin-bottom: 8px; }
+    .diagnostic-list { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+
+    .plan-list { max-height: 220px; overflow: auto; display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+    .plan-row { display: grid; grid-template-columns: 64px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border-plan); }
+    .plan-row strong { color: var(--plan-row-strong); }
+
+    .exercise-picker { max-height: 220px; overflow: auto; margin-top: 10px; padding-right: 2px; }
+    .exercise-pick-row { display: grid; grid-template-columns: 24px 1fr; gap: 8px; align-items: start; padding: 7px 0; border-bottom: 1px solid var(--border-plan); font-size: 12px; color: var(--muted); }
+    .exercise-pick-row input { width: auto; margin-top: 2px; }
+    .exercise-pick-row span { color: var(--exercise-pick-span); font-weight: 700; }
+
+    .session-display { text-align: center; padding-top: 30px; }
+    .phase { color: var(--phase-color); font-size: 19px; margin-bottom: 18px; text-transform: uppercase; letter-spacing: 1px; }
+    .timer { font-size: clamp(76px, 13vw, 132px); line-height: 1; font-weight: 900; color: var(--text); text-shadow: var(--timer-shadow); }
+    .timer.orange { color: var(--orange); }
+    .timer.red { color: var(--red); }
+    .transition {
+      font-size: clamp(84px, 16vw, 160px);
+      line-height: 1;
+      font-weight: 900;
+      color: var(--green);
+      text-shadow: var(--timer-shadow);
+      min-height: 160px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .meta { margin-top: 22px; font-size: 16px; color: var(--muted); line-height: 1.7; }
+    .controls { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 24px; }
+    .main-action { font-size: 26px; padding: 18px 20px; border-radius: 18px; background: rgba(61, 220, 132, 0.4); border-color: rgba(61, 220, 132, 0.55); }
+    .main-action:hover { background: rgba(61, 220, 132, 0.32); }
+    .close-action { background: rgba(255, 46, 46, 0.18); border-color: rgba(255, 46, 46, 0.45); }
+
+    .summary {
+      padding: 16px;
+      color: var(--text) !important;
+      background: var(--bg-summary);
+      border: 1px solid var(--summary-border);
+      border-radius: 16px;
+      transition: background 0.3s ease;
+    }
+    .summary h2 { margin-bottom: 12px; }
+    .summary-grid { display: grid; gap: 10px; font-size: 15px; }
+    .summary-line { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--summary-line-border); padding-bottom: 8px; }
+    .summary-line:last-child { border-bottom: none; padding-bottom: 0; }
+    .value { font-weight: 800; }
+    .warning { margin-top: 12px; font-size: 12px; line-height: 1.4; color: var(--warning-color); }
+    .muted { color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+    /* ── Theme toggle button styles ── */
+    .theme-toggle-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .theme-btn {
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      border: 2px solid var(--border);
+      background: var(--pill-bg);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .theme-btn:hover { background: var(--button-hover); color: var(--text); }
+    .theme-btn.theme-btn-active {
+      background: var(--button-hover);
+      border-color: var(--green);
+      color: var(--text);
+      box-shadow: 0 0 0 1px var(--green);
+    }
+    html[data-theme="light"] .exercise-visual img {
+      background: rgba(240, 242, 245, 0.95);
+    }
+
+    @media (max-width: 1200px) {
+      .app, .app.left-hidden { grid-template-columns: 1fr; height: auto; min-height: calc(100vh - 58px); }
+      .left-panel { border-right: none; border-bottom: 1px solid var(--border); }
+      .left-content { width: 100%; }
+      .app.left-hidden .left-panel { display: none; }
+      .right-panel { border-left: none; border-top: 1px solid var(--border); min-height: 620px; }
+      .exercise-stage, .below-center { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="app-header"><h1>Ma session Sport &amp; Timer</h1></header>
+
+  <div id="app" class="app">
+    <aside id="leftPanel" class="left-panel">
+      <div class="left-content">
+        <h1>Paramètres</h1>
+
+        <details class="param-section" open>
+          <summary>Apparence</summary>
+          <div class="section-body">
+            <label>Mode d'affichage</label>
+            <div class="theme-toggle-row">
+              <button id="themeDarkBtn" class="theme-btn theme-btn-active" title="Mode sombre">
+                🌙 Sombre
+              </button>
+              <button id="themeLightBtn" class="theme-btn" title="Mode clair">
+                ☀️ Clair
+              </button>
+            </div>
+          </div>
+        </details>
+
+        <details class="param-section" open>
+          <summary>Profil de séance</summary>
+          <div class="section-body">
+            <label for="sessionObjective">Objectif</label>
+            <select id="sessionObjective">
+              <option value="full_body">Full body équilibré</option>
+              <option value="cardio">Cardio</option>
+              <option value="renforcement">Renforcement</option>
+              <option value="low_impact">Low impact</option>
+              <option value="core">Core / gainage</option>
+              <option value="haut_corps">Haut du corps</option>
+              <option value="bas_corps">Bas du corps</option>
+              <option value="personnalise">Personnalisé</option>
+            </select>
+
+            <div class="two-col">
+              <label for="userLevel">Niveau
+                <select id="userLevel">
+                  <option value="debutant">Débutant</option>
+                  <option value="intermediaire" selected>Intermédiaire</option>
+                  <option value="avance">Avancé</option>
+                  <option value="expert">Expert</option>
+                </select>
+              </label>
+              <label for="targetIntensity">Intensité
+                <select id="targetIntensity">
+                  <option value="douce">Douce</option>
+                  <option value="moderee" selected>Modérée</option>
+                  <option value="intense">Intense</option>
+                  <option value="tres_intense">Très intense</option>
+                </select>
+              </label>
+            </div>
+
+            <label for="impactAccepted">Impact accepté</label>
+            <select id="impactAccepted">
+              <option value="faible">Faible</option>
+              <option value="modere" selected>Modéré</option>
+              <option value="eleve">Élevé</option>
+            </select>
+          </div>
+        </details>
+
+        <details class="param-section" open>
+          <summary>Contraintes</summary>
+          <div class="section-body">
+            <div class="check-grid">
+              <label class="check-pill"><input type="checkbox" id="sensKnees" /> Genoux</label>
+              <label class="check-pill"><input type="checkbox" id="sensWrists" /> Poignets</label>
+              <label class="check-pill"><input type="checkbox" id="sensShoulders" /> Épaules</label>
+              <label class="check-pill"><input type="checkbox" id="sensBack" /> Dos</label>
+              <label class="check-pill"><input type="checkbox" id="sensAnkles" /> Chevilles</label>
+              <label class="check-pill"><input type="checkbox" id="quietMode" /> Appartement</label>
+              <label class="check-pill"><input type="checkbox" id="smallSpace" /> Espace réduit</label>
+            </div>
+          </div>
+        </details>
+
+        <details class="param-section" open>
+          <summary>Matériel</summary>
+          <div class="section-body">
+            <div class="check-grid">
+              <label class="check-pill"><input type="checkbox" id="matChair" /> Chaise</label>
+              <label class="check-pill"><input type="checkbox" id="matDumbbells" /> Haltères</label>
+              <label class="check-pill"><input type="checkbox" id="matMat" checked /> Tapis</label>
+              <label class="check-pill"><input type="checkbox" id="matWall" /> Mur</label>
+            </div>
+          </div>
+        </details>
+
+        <details class="param-section" open>
+          <summary>Format de séance</summary>
+          <div class="section-body">
+            <label for="formatPreset">Preset effort / pause</label>
+            <select id="formatPreset">
+              <option value="custom">Personnalisé</option>
+              <option value="beginner">Débutant doux — 2x5, 30/30</option>
+              <option value="standard" selected>Intermédiaire standard — 3x5, 40/20</option>
+              <option value="cardio_intense">Cardio intense — 4x5, 45/15</option>
+              <option value="strength">Renforcement contrôlé — 3x6, 40/20</option>
+              <option value="lowimpact">Low impact — 3x5, 35/25</option>
+              <option value="express">Express — 2x6, 30/15</option>
+            </select>
+
+            <div class="two-col">
+              <label for="rounds">Rounds
+                <input id="rounds" type="number" min="1" max="10" value="3" />
+              </label>
+              <label for="exercises">Exercices / round
+                <input id="exercises" type="number" min="1" max="10" value="5" />
+              </label>
+            </div>
+
+            <label>Durée d’un exercice</label>
+            <div class="time-row">
+              <input id="exerciseMin" type="number" min="0" value="0" placeholder="minutes" />
+              <input id="exerciseSec" type="number" min="0" max="59" value="40" placeholder="secondes" />
+            </div>
+
+            <label>Pause entre exercices</label>
+            <div class="time-row">
+              <input id="pauseMin" type="number" min="0" value="0" placeholder="minutes" />
+              <input id="pauseSec" type="number" min="0" max="59" value="20" placeholder="secondes" />
+            </div>
+
+            <label>Pause entre rounds</label>
+            <div class="time-row">
+              <input id="roundPauseMin" type="number" min="0" value="1" placeholder="minutes" />
+              <input id="roundPauseSec" type="number" min="0" max="59" value="15" placeholder="secondes" />
+            </div>
+
+            <button class="small-btn" id="oneThirdPauseBtn">Pause = 1/3 du temps d’exercice</button>
+          </div>
+        </details>
+
+        <details class="param-section" open>
+          <summary>Exercices</summary>
+          <div class="section-body">
+            <label>Mode de construction</label>
+            <label class="radio-pill"><input name="buildMode" type="radio" value="auto" checked /> Générer automatiquement</label>
+            <label class="radio-pill"><input name="buildMode" type="radio" value="manual" /> Choisir mes exercices</label>
+            <label class="radio-pill"><input name="buildMode" type="radio" value="mixed" /> Mixte : je choisis, l’app complète</label>
+
+            <button class="small-btn primary-btn" id="generateBtn">Générer la séance</button>
+            <button class="small-btn" id="reloadExercisesBtn">Recharger le fichier exercices</button>
+
+            <div id="exerciseLoadStatus" class="warning">Chargement des exercices depuis HIIT_exercices_description.xlsx…</div>
+            <div id="exercisePicker" class="exercise-picker"></div>
+          </div>
+        </details>
+
+        <details class="param-section" open>
+          <summary>Musique</summary>
+          <div class="section-body">
+            <label for="youtubeUrl">Lien YouTube vidéo, musique ou playlist</label>
+            <input id="youtubeUrl" type="text" placeholder="Coller ici le lien YouTube" />
+            <button class="small-btn" id="loadYoutubeBtn">Charger le lien YouTube</button>
+            <button class="small-btn" id="musicBtn">Démarrer la musique</button>
+            <p class="warning">Le lien YouTube est conservé automatiquement lorsque tu fermes la page.</p>
+          </div>
+        </details>
+      </div>
+    </aside>
+
+    <main class="center-panel">
+      <button id="toggleLeftBtn" class="toggle-left" title="Afficher / masquer les paramètres">…</button>
+
+      <div class="youtube-card">
+        <div class="player-wrap"><div id="youtube-player"></div></div>
+      </div>
+
+      <div class="exercise-stage">
+        <div class="exercise-info">
+          <div class="overline" id="currentPositionLabel">Exercice en cours</div>
+          <div id="currentExerciseName" class="exercise-name">Aucune séance générée</div>
+          <div class="overline">À venir</div>
+          <div id="nextExerciseName" class="next-exercise">Génère une séance pour afficher le prochain exercice.</div>
+          <div id="currentExerciseTags" class="exercise-tags"></div>
+        </div>
+        <div class="exercise-visual" id="exerciseVisual">
+          <div class="image-placeholder">L’image de l’exercice en cours apparaîtra ici.</div>
+        </div>
+      </div>
+
+      <div class="below-center">
+        <div class="diagnostic-card">
+          <h2>Cohérence séance</h2>
+          <div id="diagnosticStatus" class="diagnostic-status">En attente de génération</div>
+          <ul id="diagnosticList" class="diagnostic-list"><li>Définis le profil, puis génère la séance.</li></ul>
+        </div>
+        <div class="session-plan-card">
+          <h2>Plan de séance</h2>
+          <div id="sessionPlan" class="plan-list"><div class="muted">Aucun round généré.</div></div>
+        </div>
+      </div>
+    </main>
+
+    <section class="right-panel">
+      <div>
+        <h1>Ma séance</h1>
+        <div class="session-display">
+          <div id="phaseLabel" class="phase">Prêt</div>
+          <div id="transitionText" class="transition" style="display:none;"></div>
+          <div id="timer" class="timer">00:00</div>
+          <div id="sessionMeta" class="meta">Round : 0<br />Exercice : 0</div>
+          <div class="controls">
+            <button id="sessionBtn" class="main-action">GO</button>
+            <button id="resetBtn" class="close-action">Clôturer la séance</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="summary">
+        <h2>Synthèse séance</h2>
+        <div class="summary-grid">
+          <div class="summary-line"><span>Durée cumulée exercices</span><span id="summaryDuration" class="value">00:00</span></div>
+          <div class="summary-line"><span>Exercices réalisés</span><span id="summaryExercises" class="value">0</span></div>
+          <div class="summary-line"><span>Rounds terminés</span><span id="summaryRounds" class="value">0</span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://www.youtube.com/iframe_api"></script>
+
+  <script>
+    const app = document.getElementById("app");
+    const toggleLeftBtn = document.getElementById("toggleLeftBtn");
+
+    const sessionObjectiveInput = document.getElementById("sessionObjective");
+    const userLevelInput = document.getElementById("userLevel");
+    const targetIntensityInput = document.getElementById("targetIntensity");
+    const impactAcceptedInput = document.getElementById("impactAccepted");
+    const formatPresetInput = document.getElementById("formatPreset");
+
+    const roundsInput = document.getElementById("rounds");
+    const exercisesInput = document.getElementById("exercises");
+    const exerciseMinInput = document.getElementById("exerciseMin");
+    const exerciseSecInput = document.getElementById("exerciseSec");
+    const pauseMinInput = document.getElementById("pauseMin");
+    const pauseSecInput = document.getElementById("pauseSec");
+    const roundPauseMinInput = document.getElementById("roundPauseMin");
+    const roundPauseSecInput = document.getElementById("roundPauseSec");
+    const oneThirdPauseBtn = document.getElementById("oneThirdPauseBtn");
+
+    const youtubeUrlInput = document.getElementById("youtubeUrl");
+    const loadYoutubeBtn = document.getElementById("loadYoutubeBtn");
+    const musicBtn = document.getElementById("musicBtn");
+
+    const generateBtn = document.getElementById("generateBtn");
+    const reloadExercisesBtn = document.getElementById("reloadExercisesBtn");
+    const exerciseLoadStatus = document.getElementById("exerciseLoadStatus");
+    const exercisePicker = document.getElementById("exercisePicker");
+
+    const currentPositionLabel = document.getElementById("currentPositionLabel");
+    const currentExerciseName = document.getElementById("currentExerciseName");
+    const nextExerciseName = document.getElementById("nextExerciseName");
+    const currentExerciseTags = document.getElementById("currentExerciseTags");
+    const exerciseVisual = document.getElementById("exerciseVisual");
+    const diagnosticStatus = document.getElementById("diagnosticStatus");
+    const diagnosticList = document.getElementById("diagnosticList");
+    const sessionPlan = document.getElementById("sessionPlan");
+
+    const phaseLabel = document.getElementById("phaseLabel");
+    const timerEl = document.getElementById("timer");
+    const transitionText = document.getElementById("transitionText");
+    const sessionMeta = document.getElementById("sessionMeta");
+    const sessionBtn = document.getElementById("sessionBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const summaryDuration = document.getElementById("summaryDuration");
+    const summaryExercises = document.getElementById("summaryExercises");
+    const summaryRounds = document.getElementById("summaryRounds");
+
+    const checkboxIds = ["sensKnees", "sensWrists", "sensShoulders", "sensBack", "sensAnkles", "quietMode", "smallSpace", "matChair", "matDumbbells", "matMat", "matWall"];
+
+    let player = null;
+    let playerReady = false;
+    let isMusicPlaying = false;
+
+    let timerInterval = null;
+    let state = "idle";
+    let phase = "exercise";
+    let currentRound = 1;
+    let currentExercise = 1;
+    let remainingSeconds = 0;
+
+    let completedExerciseSeconds = 0;
+    let completedExercises = 0;
+    let completedRounds = 0;
+
+    let exerciseLibrary = [];
+    let sessionPlanData = [];
+
+    const exerciseWorkbookCandidates = [
+      "./HIIT_exercices_description.xlsx",
+      "./HIIT_exercices_description(2).xlsx",
+      "./HIIT_exercices_enrichi_seances.xlsx"
+    ];
+
+    const fallbackExercises = [
+      { nom: "Squat", famille: "Jambes", intensite: "Moyenne", typeEffort: "Dynamique", image: "01_squats.png", compatibleDebutant: true, compatibleLowImpact: true, compatibleAppartement: true, contraintes: { genoux: 2, poignets: 0, epaules: 0, lombaires: 1 }, fatigue: { cardio: 1, jambes: 3, poussee: 0, tirage: 0, gainage: 1 }, niveauTechnique: 1, impact: 1, bruit: 1 },
+      { nom: "Pompes", famille: "Poussée", intensite: "Moyenne", typeEffort: "Dynamique", image: "14_Pompes.png", compatibleDebutant: false, compatibleLowImpact: true, compatibleAppartement: true, contraintes: { genoux: 0, poignets: 2, epaules: 2, lombaires: 1 }, fatigue: { cardio: 1, jambes: 0, poussee: 3, tirage: 0, gainage: 2 }, niveauTechnique: 2, impact: 1, bruit: 1 },
+      { nom: "Jumping jacks", famille: "Cardio global", intensite: "Élevée", typeEffort: "Cardio", image: "49_Jumping jacks.png", compatibleDebutant: false, compatibleLowImpact: false, compatibleAppartement: false, contraintes: { genoux: 2, poignets: 0, epaules: 1, lombaires: 1 }, fatigue: { cardio: 4, jambes: 2, poussee: 0, tirage: 0, gainage: 1 }, niveauTechnique: 1, impact: 3, bruit: 3 },
+      { nom: "Dead bug", famille: "Gainage / centre du corps", intensite: "Faible", typeEffort: "Dynamique", image: "69_Dead bug.png", compatibleDebutant: true, compatibleLowImpact: true, compatibleAppartement: true, contraintes: { genoux: 0, poignets: 0, epaules: 0, lombaires: 1 }, fatigue: { cardio: 0, jambes: 0, poussee: 0, tirage: 0, gainage: 2 }, niveauTechnique: 1, impact: 0, bruit: 0 },
+      { nom: "Rowing haltères", famille: "Tirage", intensite: "Moyenne", typeEffort: "Dynamique", image: "30_Rowing haltères.png", materiel: "Haltères", compatibleDebutant: true, compatibleLowImpact: true, compatibleAppartement: true, contraintes: { genoux: 0, poignets: 1, epaules: 1, lombaires: 2 }, fatigue: { cardio: 1, jambes: 0, poussee: 0, tirage: 3, gainage: 1 }, niveauTechnique: 2, impact: 0, bruit: 1 }
+    ];
+
+    restoreSettings();
+
+    function saveSettings() {
+      const data = {
+        sessionObjective: sessionObjectiveInput.value,
+        userLevel: userLevelInput.value,
+        targetIntensity: targetIntensityInput.value,
+        impactAccepted: impactAcceptedInput.value,
+        formatPreset: formatPresetInput.value,
+        rounds: roundsInput.value,
+        exercises: exercisesInput.value,
+        exerciseMin: exerciseMinInput.value,
+        exerciseSec: exerciseSecInput.value,
+        pauseMin: pauseMinInput.value,
+        pauseSec: pauseSecInput.value,
+        roundPauseMin: roundPauseMinInput.value,
+        roundPauseSec: roundPauseSecInput.value,
+        youtubeUrl: youtubeUrlInput.value,
+        checkboxes: Object.fromEntries(checkboxIds.map(id => [id, document.getElementById(id).checked]))
+      };
+      localStorage.setItem("hiitAppSettingsV2", JSON.stringify(data));
+      localStorage.setItem("youtubeUrl", youtubeUrlInput.value.trim());
+    }
+
+    function restoreSettings() {
+      const savedYoutubeUrl = localStorage.getItem("youtubeUrl");
+      if (savedYoutubeUrl) youtubeUrlInput.value = savedYoutubeUrl;
+
+      try {
+        const data = JSON.parse(localStorage.getItem("hiitAppSettingsV2") || "null");
+        if (!data) return;
+        if (data.sessionObjective) sessionObjectiveInput.value = data.sessionObjective;
+        if (data.userLevel) userLevelInput.value = data.userLevel;
+        if (data.targetIntensity) targetIntensityInput.value = data.targetIntensity;
+        if (data.impactAccepted) impactAcceptedInput.value = data.impactAccepted;
+        if (data.formatPreset) formatPresetInput.value = data.formatPreset;
+        ["rounds", "exercises", "exerciseMin", "exerciseSec", "pauseMin", "pauseSec", "roundPauseMin", "roundPauseSec"].forEach(key => {
+          const element = document.getElementById(key);
+          if (element && data[key] !== undefined) element.value = data[key];
+        });
+        if (data.youtubeUrl) youtubeUrlInput.value = data.youtubeUrl;
+        if (data.checkboxes) {
+          Object.entries(data.checkboxes).forEach(([id, checked]) => {
+            const el = document.getElementById(id);
+            if (el) el.checked = !!checked;
+          });
+        }
+      } catch (error) {
+        console.warn("Réglages non restaurés", error);
+      }
+    }
+
+    document.querySelectorAll("input, select").forEach(el => {
+      el.addEventListener("change", () => {
+        saveSettings();
+        if (["sessionObjective", "userLevel", "targetIntensity", "impactAccepted", "rounds", "exercises", "exerciseMin", "exerciseSec", "pauseMin", "pauseSec", "roundPauseMin", "roundPauseSec"].includes(el.id)) {
+          updateDiagnostics();
+        }
+      });
+    });
+
+    formatPresetInput.addEventListener("change", applyFormatPreset);
+
+    function applyFormatPreset() {
+      const presets = {
+        beginner: [2, 5, 0, 30, 0, 30, 1, 30],
+        standard: [3, 5, 0, 40, 0, 20, 1, 15],
+        cardio_intense: [4, 5, 0, 45, 0, 15, 1, 30],
+        strength: [3, 6, 0, 40, 0, 20, 1, 15],
+        lowimpact: [3, 5, 0, 35, 0, 25, 1, 15],
+        express: [2, 6, 0, 30, 0, 15, 1, 0]
+      };
+      if (!presets[formatPresetInput.value]) return;
+      const [r, e, em, es, pm, ps, rm, rs] = presets[formatPresetInput.value];
+      roundsInput.value = r; exercisesInput.value = e;
+      exerciseMinInput.value = em; exerciseSecInput.value = es;
+      pauseMinInput.value = pm; pauseSecInput.value = ps;
+      roundPauseMinInput.value = rm; roundPauseSecInput.value = rs;
+      saveSettings();
+      updateDiagnostics();
+    }
+
+    async function loadExerciseLibrary() {
+      exerciseLoadStatus.textContent = "Chargement des exercices…";
+
+      if (!window.XLSX) {
+        exerciseLibrary = fallbackExercises;
+        exerciseLoadStatus.textContent = "Bibliothèque de secours chargée. SheetJS n’est pas disponible.";
+        renderExercisePicker();
+        generateSession();
+        return;
+      }
+
+      let lastError = null;
+      for (const path of exerciseWorkbookCandidates) {
+        try {
+          const response = await fetch(path, { cache: "no-store" });
+          if (!response.ok) throw new Error(path + " introuvable");
+          const buffer = await response.arrayBuffer();
+          const workbook = XLSX.read(buffer, { type: "array" });
+          const preferredSheet = workbook.SheetNames.includes("exercices_enrichis_v2") ? "exercices_enrichis_v2" :
+            workbook.SheetNames.includes("exercices_enrichis") ? "exercices_enrichis" : workbook.SheetNames[0];
+          const rows = XLSX.utils.sheet_to_json(workbook.Sheets[preferredSheet], { defval: "" });
+          exerciseLibrary = rows.map(normalizeExercise).filter(ex => ex.nom);
+          if (!exerciseLibrary.length) throw new Error("Aucun exercice exploitable");
+          exerciseLoadStatus.textContent = exerciseLibrary.length + " exercices chargés depuis " + path.replace("./", "") + ".";
+          renderExercisePicker();
+          generateSession();
+          return;
+        } catch (error) {
+          lastError = error;
+          console.warn("Chargement impossible", path, error);
+        }
+      }
+
+      exerciseLibrary = fallbackExercises;
+      exerciseLoadStatus.textContent = "Fichier Excel non chargé. Bibliothèque de secours utilisée. Lance l’app via le serveur local et vérifie que HIIT_exercices_description.xlsx est dans le même dossier que index.html.";
+      console.warn(lastError);
+      renderExercisePicker();
+      generateSession();
+    }
+
+    function normalizeExercise(row) {
+      const get = (...keys) => {
+        for (const key of keys) if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== "") return String(row[key]).trim();
+        return "";
+      };
+      const nom = get("nom_exercice", "Nom", "nom", "exercise_name");
+      const famille = get("famille_exercice", "famille", "category") || inferFamily(nom);
+      const intensite = get("niveau_intensite", "intensite", "intensity") || "Moyenne";
+      const typeEffort = get("type_effort", "type") || "Dynamique";
+      const image = get("image_path", "image_file_detecte", "image", "image_file", "fallback_image_path");
+      const materiel = get("materiel_requis", "matériel requis", "materiel") || inferMaterial(row, nom);
+
+      return {
+        raw: row,
+        nom,
+        famille,
+        groupe: get("groupe_musculaire", "groupe_musculaire_principal", "groupes_secondaires"),
+        intensite,
+        typeEffort,
+        image,
+        materiel,
+        chaiseNecessaire: yes(get("chaise_necessaire")),
+        halteresPossibles: yes(get("possible_avec_halteres")) || /halt[eè]re|dumbbell/i.test(materiel + " " + nom),
+        niveauTechnique: levelToNumber(get("niveau_technique")) || inferTechnique(nom, intensite),
+        impact: levelToNumber(get("impact_articulaire")) || inferImpact(nom, intensite, typeEffort),
+        bruit: levelToNumber(get("bruit_appartement")) || inferNoise(nom, typeEffort),
+        compatibleDebutant: boolOrInfer(get("compatible_debutant"), !/burpee|saut|jump|mountain|pike|bear/i.test(nom)),
+        compatibleLowImpact: boolOrInfer(get("compatible_low_impact"), !/saut|jump|burpee|skater|montée|montee|running|course/i.test(nom)),
+        compatibleAppartement: boolOrInfer(get("compatible_appartement"), !/saut|jump|burpee|skater|course|running/i.test(nom)),
+        contraintes: {
+          genoux: levelToNumber(get("contrainte_genoux")) || inferJoint(nom, "genoux"),
+          poignets: levelToNumber(get("contrainte_poignets")) || inferJoint(nom, "poignets"),
+          epaules: levelToNumber(get("contrainte_epaules")) || inferJoint(nom, "epaules"),
+          lombaires: levelToNumber(get("contrainte_lombaires")) || inferJoint(nom, "lombaires")
+        },
+        fatigue: {
+          cardio: numberOr(get("fatigue_cardio_1_5"), inferFatigue(famille, typeEffort, "cardio")),
+          jambes: numberOr(get("fatigue_jambes_1_5"), inferFatigue(famille, typeEffort, "jambes")),
+          poussee: numberOr(get("fatigue_poussee_1_5"), inferFatigue(famille, typeEffort, "poussee")),
+          tirage: numberOr(get("fatigue_tirage_1_5"), inferFatigue(famille, typeEffort, "tirage")),
+          gainage: numberOr(get("fatigue_gainage_1_5"), inferFatigue(famille, typeEffort, "gainage"))
+        }
+      };
+    }
+
+    function yes(value) { return /^(oui|yes|true|1)$/i.test(String(value || "").trim()); }
+    function boolOrInfer(value, fallback) { if (!value) return fallback; return yes(value); }
+    function numberOr(value, fallback) { const n = Number(value); return Number.isFinite(n) && n > 0 ? n : fallback; }
+    function levelToNumber(value) {
+      const v = String(value || "").toLowerCase();
+      if (!v) return 0;
+      if (/faible|simple|bas|low/.test(v)) return 1;
+      if (/moyen|mod[eé]r|standard|medium/.test(v)) return 2;
+      if (/[ée]lev|fort|difficile|high/.test(v)) return 3;
+      if (/tr[eè]s|very|expert/.test(v)) return 4;
+      const n = Number(v); return Number.isFinite(n) ? n : 0;
+    }
+    function inferFamily(name) {
+      if (/pompe|dip|push/i.test(name)) return "Poussée";
+      if (/row|tirage|rowing/i.test(name)) return "Tirage";
+      if (/planche|gainage|dead bug|hollow|russian/i.test(name)) return "Gainage / centre du corps";
+      if (/jump|jack|burpee|skater|course|montée/i.test(name)) return "Cardio global";
+      return "Jambes";
+    }
+    function inferMaterial(row, name) {
+      const text = JSON.stringify(row) + " " + name;
+      if (/chaise/i.test(text)) return "Chaise";
+      if (/halt[eè]re/i.test(text)) return "Haltères";
+      if (/mur/i.test(text)) return "Mur";
+      return "Aucun";
+    }
+    function inferTechnique(name, intensity) { return /burpee|bear|pike|saut|skater|mountain/i.test(name) ? 3 : levelToNumber(intensity) > 2 ? 2 : 1; }
+    function inferImpact(name, intensity, typeEffort) { if (/saut|jump|burpee|skater|course|montée/i.test(name)) return 3; if (/cardio/i.test(typeEffort) || /élev/i.test(intensity)) return 2; return 1; }
+    function inferNoise(name, typeEffort) { if (/saut|jump|burpee|skater|course/i.test(name)) return 3; if (/cardio/i.test(typeEffort)) return 2; return 1; }
+    function inferJoint(name, joint) {
+      const n = name.toLowerCase();
+      if (joint === "genoux" && /squat|fente|jump|saut|skater|step|montée|montee|course|burpee/.test(n)) return 2;
+      if (joint === "poignets" && /pompe|planche|mountain|burpee|bear|pike/.test(n)) return 2;
+      if (joint === "epaules" && /pompe|dip|planche|mountain|burpee|pike/.test(n)) return 2;
+      if (joint === "lombaires" && /rowing|farmer|swing|hollow|russian|burpee/.test(n)) return 2;
+      return 0;
+    }
+    function inferFatigue(family, typeEffort, target) {
+      const f = (family + " " + typeEffort).toLowerCase();
+      if (target === "cardio" && /cardio/.test(f)) return 4;
+      if (target === "jambes" && /jambe|squat|fente/.test(f)) return 3;
+      if (target === "poussee" && /pouss/.test(f)) return 3;
+      if (target === "tirage" && /tirage/.test(f)) return 3;
+      if (target === "gainage" && /gainage|centre|core/.test(f)) return 3;
+      return 0;
+    }
+
+    function renderExercisePicker() {
+      exercisePicker.innerHTML = "";
+      exerciseLibrary.forEach((ex, index) => {
+        const row = document.createElement("label");
+        row.className = "exercise-pick-row";
+        row.innerHTML = `<input type="checkbox" class="exerciseManualCheck" data-index="${index}"><div><span>${escapeHtml(ex.nom)}</span><br>${escapeHtml(ex.famille)} · ${escapeHtml(ex.intensite)}</div>`;
+        exercisePicker.appendChild(row);
+      });
+      document.querySelectorAll(".exerciseManualCheck").forEach(chk => chk.addEventListener("change", () => {
+        const mode = getBuildMode();
+        if (mode === "manual" || mode === "mixed") generateSession();
+      }));
+    }
+
+    function getBuildMode() { return document.querySelector("input[name='buildMode']:checked")?.value || "auto"; }
+    document.querySelectorAll("input[name='buildMode']").forEach(radio => radio.addEventListener("change", generateSession));
+
+    function getSettings() {
+      const rounds = clamp(parseInt(roundsInput.value, 10) || 1, 1, 10);
+      const exercises = clamp(parseInt(exercisesInput.value, 10) || 1, 1, 10);
+      const exerciseSeconds = (parseInt(exerciseMinInput.value, 10) || 0) * 60 + (parseInt(exerciseSecInput.value, 10) || 0);
+      const pauseSeconds = (parseInt(pauseMinInput.value, 10) || 0) * 60 + (parseInt(pauseSecInput.value, 10) || 0);
+      const roundPauseSeconds = (parseInt(roundPauseMinInput.value, 10) || 0) * 60 + (parseInt(roundPauseSecInput.value, 10) || 0);
+      return {
+        rounds,
+        exercises,
+        exerciseSeconds: Math.max(1, exerciseSeconds),
+        pauseSeconds: Math.max(1, pauseSeconds),
+        roundPauseSeconds: Math.max(1, roundPauseSeconds),
+        objective: sessionObjectiveInput.value,
+        level: userLevelInput.value,
+        intensity: targetIntensityInput.value,
+        impact: impactAcceptedInput.value,
+        constraints: {
+          knees: document.getElementById("sensKnees").checked,
+          wrists: document.getElementById("sensWrists").checked,
+          shoulders: document.getElementById("sensShoulders").checked,
+          back: document.getElementById("sensBack").checked,
+          ankles: document.getElementById("sensAnkles").checked,
+          quiet: document.getElementById("quietMode").checked,
+          smallSpace: document.getElementById("smallSpace").checked
+        },
+        equipment: {
+          chair: document.getElementById("matChair").checked,
+          dumbbells: document.getElementById("matDumbbells").checked,
+          mat: document.getElementById("matMat").checked,
+          wall: document.getElementById("matWall").checked
+        }
+      };
+    }
+
+    function generateSession() {
+      if (!exerciseLibrary.length) return;
+      const settings = getSettings();
+      const mode = getBuildMode();
+      const totalNeeded = settings.rounds * settings.exercises;
+      const checked = Array.from(document.querySelectorAll(".exerciseManualCheck:checked")).map(chk => exerciseLibrary[Number(chk.dataset.index)]).filter(Boolean);
+
+      let selected = [];
+      if (mode === "manual") {
+        selected = checked.slice(0, totalNeeded);
+        if (selected.length < totalNeeded) {
+          selected = selected.concat(selectAutomatic(totalNeeded - selected.length, settings, selected));
+        }
+      } else if (mode === "mixed") {
+        selected = checked.slice(0, totalNeeded).concat(selectAutomatic(totalNeeded - checked.length, settings, checked));
+      } else {
+        selected = selectAutomatic(totalNeeded, settings, []);
+      }
+
+      sessionPlanData = [];
+      for (let r = 1; r <= settings.rounds; r++) {
+        for (let e = 1; e <= settings.exercises; e++) {
+          const ex = selected[(r - 1) * settings.exercises + (e - 1)] || selected[(e - 1) % selected.length] || exerciseLibrary[0];
+          sessionPlanData.push({ round: r, exerciseNumber: e, exercise: ex });
+        }
+      }
+
+      currentRound = 1;
+      currentExercise = 1;
+      renderSessionPlan();
+      updateCurrentExerciseDisplay();
+      updateDiagnostics();
+      saveSettings();
+    }
+
+    function selectAutomatic(count, settings, preselected) {
+      const result = [];
+      const pool = exerciseLibrary.filter(ex => isAllowedByEquipment(ex, settings));
+      const objectiveSlots = getObjectiveSlots(settings.objective, settings.exercises);
+
+      for (let i = 0; i < count; i++) {
+        const slot = objectiveSlots[i % objectiveSlots.length];
+        const previous = result[result.length - 1] || preselected[preselected.length - 1];
+        const candidates = pool
+          .filter(ex => !previous || ex.nom !== previous.nom)
+          .map(ex => ({ ex, score: scoreExercise(ex, settings, slot, previous, result.concat(preselected)) }))
+          .sort((a, b) => b.score - a.score);
+        const top = candidates.slice(0, Math.min(8, candidates.length));
+        const choice = weightedChoice(top) || candidates[0];
+        if (choice) result.push(choice.ex);
+      }
+      return result;
+    }
+
+    function getObjectiveSlots(objective, exercisesPerRound) {
+      const templates = {
+        full_body: ["Jambes", "Poussée", "Cardio", "Gainage", "Tirage", "Core"],
+        cardio: ["Cardio", "Jambes", "Gainage", "Cardio", "Poussée", "Cardio"],
+        renforcement: ["Jambes", "Poussée", "Tirage", "Gainage", "Jambes", "Core"],
+        low_impact: ["Jambes", "Poussée", "Gainage", "Cardio", "Tirage", "Core"],
+        core: ["Gainage", "Core", "Gainage", "Cardio", "Gainage", "Core"],
+        haut_corps: ["Poussée", "Tirage", "Gainage", "Poussée", "Tirage", "Cardio"],
+        bas_corps: ["Jambes", "Cardio", "Jambes", "Gainage", "Jambes", "Tirage"],
+        personnalise: ["Jambes", "Poussée", "Cardio", "Gainage", "Tirage"]
+      };
+      const base = templates[objective] || templates.full_body;
+      return Array.from({ length: exercisesPerRound }, (_, i) => base[i % base.length]);
+    }
+
+    function isAllowedByEquipment(ex, settings) {
+      const text = (ex.materiel + " " + ex.nom).toLowerCase();
+      if ((ex.chaiseNecessaire || /chaise/.test(text)) && !settings.equipment.chair) return false;
+      if (/halt[eè]re|dumbbell/.test(text) && !settings.equipment.dumbbells && !/option/i.test(text)) return false;
+      if (/mur/.test(text) && !settings.equipment.wall) return false;
+      return true;
+    }
+
+    function scoreExercise(ex, settings, slot, previous, currentList) {
+      let score = 50;
+      const family = ex.famille.toLowerCase();
+      const slotLower = slot.toLowerCase();
+      if (slotLower.includes("cardio") && (family.includes("cardio") || ex.typeEffort.toLowerCase().includes("cardio"))) score += 28;
+      if (slotLower.includes("jambes") && family.includes("jambes")) score += 28;
+      if (slotLower.includes("pouss") && family.includes("pouss")) score += 28;
+      if (slotLower.includes("tirage") && family.includes("tirage")) score += 28;
+      if ((slotLower.includes("gainage") || slotLower.includes("core")) && (family.includes("gainage") || family.includes("centre"))) score += 28;
+
+      if (settings.objective === "low_impact") score += ex.compatibleLowImpact ? 18 : -35;
+      if (settings.objective === "cardio") score += ex.fatigue.cardio * 4;
+      if (settings.objective === "renforcement") score += (ex.fatigue.jambes + ex.fatigue.poussee + ex.fatigue.tirage + ex.fatigue.gainage) * 2;
+
+      const levelMax = { debutant: 1, intermediaire: 2, avance: 3, expert: 4 }[settings.level] || 2;
+      if (ex.niveauTechnique > levelMax + 1) score -= 30;
+      if (settings.level === "debutant" && !ex.compatibleDebutant) score -= 35;
+
+      const impactMax = { faible: 1, modere: 2, eleve: 4 }[settings.impact] || 2;
+      if (ex.impact > impactMax) score -= 35;
+      if (settings.constraints.quiet && (ex.bruit > 1 || !ex.compatibleAppartement)) score -= 35;
+      if (settings.constraints.knees && ex.contraintes.genoux >= 2) score -= 25;
+      if (settings.constraints.ankles && ex.impact >= 2) score -= 25;
+      if (settings.constraints.wrists && ex.contraintes.poignets >= 2) score -= 25;
+      if (settings.constraints.shoulders && ex.contraintes.epaules >= 2) score -= 25;
+      if (settings.constraints.back && ex.contraintes.lombaires >= 2) score -= 25;
+
+      if (previous && sameFamily(previous, ex)) score -= 18;
+      const sameCount = currentList.filter(item => item.nom === ex.nom).length;
+      score -= sameCount * 12;
+
+      return score + Math.random() * 8;
+    }
+
+    function sameFamily(a, b) { return a && b && String(a.famille).toLowerCase() === String(b.famille).toLowerCase(); }
+    function weightedChoice(items) { if (!items.length) return null; const positive = items.map(i => Math.max(1, i.score)); const total = positive.reduce((a,b)=>a+b,0); let r = Math.random() * total; for (let i = 0; i < items.length; i++) { r -= positive[i]; if (r <= 0) return items[i]; } return items[0]; }
+
+    function renderSessionPlan() {
+      if (!sessionPlanData.length) {
+        sessionPlan.innerHTML = `<div class="muted">Aucun round généré.</div>`;
+        return;
+      }
+      sessionPlan.innerHTML = sessionPlanData.map(item => `<div class="plan-row"><strong>R${item.round} · E${item.exerciseNumber}</strong><span>${escapeHtml(item.exercise.nom)}</span></div>`).join("");
+    }
+
+    function updateCurrentExerciseDisplay() {
+      const current = getCurrentPlanItem();
+      const next = getNextPlanItem();
+      const isDuringPause = (phase === "pause" || phase === "roundPause") && state === "running";
+
+      if (!current) {
+        currentPositionLabel.textContent = "Exercice en cours";
+        currentExerciseName.textContent = "Aucune séance générée";
+        nextExerciseName.textContent = "Génère une séance pour afficher le prochain exercice.";
+        currentExerciseTags.innerHTML = "";
+        exerciseVisual.innerHTML = `<div class="image-placeholder">L'image de l'exercice en cours apparaîtra ici.</div>`;
+        return;
+      }
+
+      if (isDuringPause && next) {
+        const nextEx = next.exercise;
+        currentPositionLabel.textContent = `⏭ Prochain — Round ${next.round} / ${getSettings().rounds} — Exercice ${next.exerciseNumber} / ${getSettings().exercises}`;
+        currentExerciseName.textContent = nextEx.nom;
+        nextExerciseName.textContent = `Termine : ${current.exercise.nom}`;
+        currentExerciseTags.innerHTML = [nextEx.famille, nextEx.intensite, nextEx.typeEffort].filter(Boolean).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("");
+        const img = normalizeImagePath(nextEx.image);
+        exerciseVisual.innerHTML = img ? `<img src="${escapeAttr(img)}" alt="${escapeAttr(nextEx.nom)}" onerror="this.parentElement.innerHTML='<div class=&quot;image-placeholder&quot;>Image non trouvée pour ${escapeAttr(nextEx.nom)}.<br>Vérifie le nom du fichier image dans Assets.</div>'">` : `<div class="image-placeholder">Aucune image renseignée pour cet exercice.</div>`;
+      } else {
+        const ex = current.exercise;
+        currentPositionLabel.textContent = `Round ${current.round} / ${getSettings().rounds} — Exercice ${current.exerciseNumber} / ${getSettings().exercises}`;
+        currentExerciseName.textContent = ex.nom;
+        nextExerciseName.textContent = next ? next.exercise.nom : "Fin de séance";
+        currentExerciseTags.innerHTML = [ex.famille, ex.intensite, ex.typeEffort].filter(Boolean).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("");
+        const img = normalizeImagePath(ex.image);
+        exerciseVisual.innerHTML = img ? `<img src="${escapeAttr(img)}" alt="${escapeAttr(ex.nom)}" onerror="this.parentElement.innerHTML='<div class=&quot;image-placeholder&quot;>Image non trouvée pour ${escapeAttr(ex.nom)}.<br>Vérifie le nom du fichier image dans Assets.</div>'">` : `<div class="image-placeholder">Aucune image renseignée pour cet exercice.</div>`;
+      }
+    }
+    function normalizeImagePath(path) {
+      if (!path) return "";
+      // Extraire le nom de fichier seul (sans sous-dossier)
+      let p = String(path).trim();
+      p = p.replace(/^[.\/]+/, ""); // retire ./ ou /
+      p = p.replace(/^Assets_dark[/\\]/i, ""); // retire Assets_dark/
+      p = p.replace(/^Assets[/\\]/i, ""); // retire Assets/
+      // Choisir le dossier selon le thème
+      const theme = document.documentElement.getAttribute("data-theme") || "dark";
+      const folder = theme === "light" ? "Assets" : "Assets_dark";
+      return "./" + folder + "/" + p;
+    }
+    function getCurrentPlanItem() {
+      return sessionPlanData.find(item => item.round === currentRound && item.exerciseNumber === currentExercise);
+    }
+    function getNextPlanItem() {
+      const idx = sessionPlanData.findIndex(item => item.round === currentRound && item.exerciseNumber === currentExercise);
+      return idx >= 0 ? sessionPlanData[idx + 1] : null;
+    }
+
+    function updateDiagnostics() {
+      if (!sessionPlanData.length) return;
+      const settings = getSettings();
+      const warnings = [];
+      let score = 100;
+      const selected = sessionPlanData.map(i => i.exercise);
+      const highImpact = selected.filter(ex => ex.impact >= 3).length;
+      const highIntensity = selected.filter(ex => levelToNumber(ex.intensite) >= 3).length;
+      const wristLoad = selected.filter(ex => ex.contraintes.poignets >= 2).length;
+      const kneeLoad = selected.filter(ex => ex.contraintes.genoux >= 2).length;
+      const shoulderLoad = selected.filter(ex => ex.contraintes.epaules >= 2).length;
+      const durationDensity = settings.exerciseSeconds / Math.max(settings.pauseSeconds, 1);
+
+      for (let r = 1; r <= settings.rounds; r++) {
+        const roundItems = sessionPlanData.filter(i => i.round === r).map(i => i.exercise);
+        const familyCounts = countBy(roundItems, ex => ex.famille);
+        Object.entries(familyCounts).forEach(([family, count]) => {
+          if (count >= Math.ceil(settings.exercises * 0.55) && settings.exercises >= 4) {
+            warnings.push(`Round ${r} : forte dominante ${family}.`);
+            score -= 8;
+          }
+        });
+        for (let i = 1; i < roundItems.length; i++) {
+          if (sameFamily(roundItems[i-1], roundItems[i])) {
+            warnings.push(`Round ${r} : deux exercices ${roundItems[i].famille} consécutifs.`);
+            score -= 5;
+          }
+        }
+      }
+
+      if (settings.level === "debutant" && highIntensity > settings.rounds) { warnings.push("Trop d’exercices d’intensité élevée pour un niveau débutant."); score -= 18; }
+      if (settings.impact !== "eleve" && highImpact > settings.rounds) { warnings.push("Impact élevé fréquent : attention aux sauts, genoux et voisinage."); score -= 15; }
+      if (settings.constraints.knees && kneeLoad > 0) { warnings.push("Sensibilité genoux : certains exercices sollicitent fortement les genoux."); score -= 12; }
+      if (settings.constraints.wrists && wristLoad > 0) { warnings.push("Sensibilité poignets : certains exercices sont en appui sur les mains."); score -= 12; }
+      if (settings.constraints.shoulders && shoulderLoad > 0) { warnings.push("Sensibilité épaules : plusieurs exercices peuvent charger les épaules."); score -= 10; }
+      if (settings.constraints.quiet && selected.some(ex => ex.bruit >= 3)) { warnings.push("Mode appartement : des exercices bruyants restent présents."); score -= 12; }
+      if (settings.level === "debutant" && durationDensity > 1.5) { warnings.push("Ratio effort / pause exigeant pour débuter."); score -= 10; }
+      if (settings.exerciseSeconds > 50 && settings.pauseSeconds < 15) { warnings.push("Densité élevée : effort long avec récupération courte."); score -= 10; }
+
+      score = clamp(score, 0, 100);
+      if (!warnings.length) warnings.push("Séance équilibrée selon les paramètres actuels.");
+      diagnosticStatus.textContent = score >= 80 ? `✅ Cohérente — ${score}/100` : score >= 60 ? `⚠️ À surveiller — ${score}/100` : `❌ Déconseillée — ${score}/100`;
+      diagnosticList.innerHTML = warnings.slice(0, 8).map(w => `<li>${escapeHtml(w)}</li>`).join("");
+    }
+
+    function countBy(items, fn) { return items.reduce((acc, item) => { const key = fn(item); acc[key] = (acc[key] || 0) + 1; return acc; }, {}); }
+
+    function onYouTubeIframeAPIReady() {
+      const initialData = parseYoutubeUrl(youtubeUrlInput.value);
+      player = new YT.Player("youtube-player", {
+        height: "100%",
+        width: "100%",
+        videoId: initialData.videoId || "",
+        playerVars: { enablejsapi: 1, origin: window.location.origin, rel: 0, modestbranding: 1, playsinline: 1, listType: initialData.playlistId ? "playlist" : undefined, list: initialData.playlistId || undefined },
+        events: {
+          onReady: () => {
+            playerReady = true;
+            if (initialData.playlistId && !initialData.videoId) player.cuePlaylist({ list: initialData.playlistId, listType: "playlist" });
+          },
+          onStateChange: (event) => { isMusicPlaying = event.data === YT.PlayerState.PLAYING; updateMusicButton(); },
+          onError: (event) => {
+            console.warn("Erreur YouTube :", event.data);
+            if (event.data === 150 || event.data === 153) alert("YouTube bloque cette lecture intégrée. Essaie une autre vidéo / playlist autorisant l’intégration ou lance la page via un serveur local.");
+          }
+        }
+      });
+    }
+    window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+
+    function parseYoutubeUrl(url) {
+      const result = { videoId: "", playlistId: "" };
+      if (!url || !url.trim()) return result;
+      try {
+        const parsed = new URL(url.trim());
+        result.playlistId = parsed.searchParams.get("list") || "";
+        if (parsed.hostname.includes("youtu.be")) result.videoId = parsed.pathname.replace("/", "");
+        if (parsed.hostname.includes("youtube.com")) {
+          if (parsed.pathname === "/watch") result.videoId = parsed.searchParams.get("v") || "";
+          if (parsed.pathname.startsWith("/embed/")) result.videoId = parsed.pathname.split("/embed/")[1].split("?")[0];
+          if (parsed.pathname.startsWith("/shorts/")) result.videoId = parsed.pathname.split("/shorts/")[1].split("?")[0];
+          if (parsed.pathname.startsWith("/playlist")) result.videoId = "";
+        }
+      } catch (error) { console.warn("Lien YouTube invalide", error); }
+      return result;
+    }
+
+    function loadYoutube() {
+      if (!playerReady || !player) { alert("Le lecteur YouTube n’est pas encore prêt."); return; }
+      const url = youtubeUrlInput.value.trim();
+      localStorage.setItem("youtubeUrl", url);
+      saveSettings();
+      const data = parseYoutubeUrl(url);
+      if (!data.videoId && !data.playlistId) { alert("Colle un lien YouTube valide : vidéo, musique ou playlist."); return; }
+      if (data.playlistId) player.loadPlaylist({ list: data.playlistId, listType: "playlist", index: 0, startSeconds: 0 });
+      else player.loadVideoById(data.videoId);
+      isMusicPlaying = true;
+      updateMusicButton();
+    }
+    function playMusic() {
+      if (!playerReady || !player) return;
+      if (!youtubeUrlInput.value.trim()) return;
+      if (!player.getVideoData || !player.getVideoData().video_id) { loadYoutube(); return; }
+      player.playVideo(); isMusicPlaying = true; updateMusicButton();
+    }
+    function pauseMusic() { if (!playerReady || !player) return; player.pauseVideo(); isMusicPlaying = false; updateMusicButton(); }
+    function updateMusicButton() { musicBtn.textContent = isMusicPlaying ? "Mettre la musique en pause" : "Démarrer la musique"; }
+
+    function clamp(value, min, max) { return Math.min(Math.max(value, min), max); }
+    function formatTime(totalSeconds) { const min = Math.floor(totalSeconds / 60); const sec = totalSeconds % 60; return String(min).padStart(2, "0") + ":" + String(sec).padStart(2, "0"); }
+
+    function updateDisplayColor() {
+      timerEl.classList.remove("orange", "red");
+      if (phase === "exercise") {
+        if (remainingSeconds < 5) timerEl.classList.add("red");
+        else if (remainingSeconds <= 9) timerEl.classList.add("orange");
+      } else if (phase === "pause" || phase === "roundPause") {
+        if (remainingSeconds < 3) timerEl.classList.add("red");
+        else if (remainingSeconds <= 5) timerEl.classList.add("orange");
+      }
+    }
+    function updateSessionMeta() { sessionMeta.innerHTML = "Round : " + (state === "idle" ? 0 : currentRound) + "<br />Exercice : " + (state === "idle" ? 0 : currentExercise); }
+    function updateSummary() { summaryDuration.textContent = formatTime(completedExerciseSeconds); summaryExercises.textContent = completedExercises; summaryRounds.textContent = completedRounds; }
+    function showTimer() { transitionText.style.display = "none"; timerEl.style.display = "block"; }
+    function showTransition(text) { timerEl.style.display = "none"; transitionText.style.display = "flex"; transitionText.textContent = text; }
+    function resetSummary() { completedExerciseSeconds = 0; completedExercises = 0; completedRounds = 0; updateSummary(); }
+
+    function startSession() {
+      if (!sessionPlanData.length) generateSession();
+      const settings = getSettings();
+      currentRound = 1; currentExercise = 1; phase = "exercise"; state = "starting"; remainingSeconds = settings.exerciseSeconds;
+      resetSummary(); updateSessionMeta(); updateCurrentExerciseDisplay(); sessionBtn.textContent = "PAUSE"; playMusic(); runInitialCountdown();
+    }
+    function runInitialCountdown() {
+      const sequence = ["3", "2", "1", "GO"];
+      let index = 0;
+      showTransition(sequence[index]); phaseLabel.textContent = "Début de séance";
+      const countdown = setInterval(() => {
+        index++;
+        if (index >= sequence.length) { clearInterval(countdown); beginExercise(); return; }
+        showTransition(sequence[index]);
+      }, 800);
+    }
+    function beginExercise() {
+      const settings = getSettings();
+      state = "running"; phase = "exercise"; remainingSeconds = settings.exerciseSeconds;
+      phaseLabel.textContent = "Exercice"; updateCurrentExerciseDisplay(); showTimer(); tickDisplay(); startTimer();
+    }
+    function beginPause(isRoundPause = false) {
+      const settings = getSettings();
+      state = "running"; phase = isRoundPause ? "roundPause" : "pause"; remainingSeconds = isRoundPause ? settings.roundPauseSeconds : settings.pauseSeconds;
+      phaseLabel.textContent = isRoundPause ? "Pause entre rounds" : "Pause";
+      updateCurrentExerciseDisplay();
+      showTimer(); tickDisplay(); startTimer();
+    }
+    function startTimer() {
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        remainingSeconds--; tickDisplay();
+        if (remainingSeconds <= 0) { clearInterval(timerInterval); handlePhaseEnd(); }
+      }, 1000);
+    }
+    function tickDisplay() { timerEl.textContent = formatTime(Math.max(remainingSeconds, 0)); updateDisplayColor(); updateSessionMeta(); }
+
+    function handlePhaseEnd() {
+      const settings = getSettings();
+      if (phase === "exercise") {
+        completedExercises++; completedExerciseSeconds += settings.exerciseSeconds; updateSummary();
+        const isLastExerciseOfRound = currentExercise >= settings.exercises;
+        const isLastRound = currentRound >= settings.rounds;
+        if (isLastExerciseOfRound && isLastRound) { finishSession(); return; }
+        showTemporaryTransition("Stop", () => beginPause(isLastExerciseOfRound));
+        return;
+      }
+      if (phase === "pause") {
+        currentExercise++;
+        showTemporaryTransition("Go", () => beginExercise());
+        return;
+      }
+      if (phase === "roundPause") {
+        completedRounds++; updateSummary(); currentRound++; currentExercise = 1;
+        showTemporaryTransition("Go", () => beginExercise());
+      }
+    }
+    function showTemporaryTransition(text, callback) { showTransition(text); setTimeout(callback, 850); }
+    function pauseSession() { if (state !== "running") return; state = "paused"; clearInterval(timerInterval); sessionBtn.textContent = "REPRENDRE"; phaseLabel.textContent = "Séance en pause"; }
+    function resumeSession() { if (state !== "paused") return; state = "running"; sessionBtn.textContent = "PAUSE"; phaseLabel.textContent = phase === "exercise" ? "Exercice" : phase === "roundPause" ? "Pause entre rounds" : "Pause"; startTimer(); }
+    function finishSession() { state = "done"; clearInterval(timerInterval); completedRounds = getSettings().rounds; updateSummary(); phaseLabel.textContent = "Séance terminée"; showTransition("Stop"); sessionBtn.textContent = "GO"; updateSessionMeta(); updateCurrentExerciseDisplay(); }
+    function closeSession() {
+      state = "idle"; phase = "exercise"; currentRound = 1; currentExercise = 1; remainingSeconds = 0; clearInterval(timerInterval);
+      phaseLabel.textContent = "Prêt"; timerEl.textContent = "00:00"; timerEl.classList.remove("orange", "red"); showTimer(); sessionBtn.textContent = "GO"; resetSummary(); updateSessionMeta(); updateCurrentExerciseDisplay();
+    }
+    function handleSessionButton() { if (state === "idle" || state === "done") startSession(); else if (state === "running") pauseSession(); else if (state === "paused") resumeSession(); }
+
+    function escapeHtml(str) { return String(str || "").replace(/[&<>'"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "'":"&#39;", '"':"&quot;" }[c])); }
+    function escapeAttr(str) { return escapeHtml(str).replace(/`/g, "&#96;"); }
+
+    // ── Theme management ──
+    let currentTheme = localStorage.getItem("hiitTheme") || "dark";
+
+    function applyTheme(theme) {
+      currentTheme = theme;
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem("hiitTheme", theme);
+      themeDarkBtn.classList.toggle("theme-btn-active", theme === "dark");
+      themeLightBtn.classList.toggle("theme-btn-active", theme === "light");
+      // Refresh exercise images for new theme
+      updateCurrentExerciseDisplay(); // toujours rafraîchir les images au changement de thème
+    }
+
+    const themeDarkBtn = document.getElementById("themeDarkBtn");
+    const themeLightBtn = document.getElementById("themeLightBtn");
+    themeDarkBtn.addEventListener("click", () => applyTheme("dark"));
+    themeLightBtn.addEventListener("click", () => applyTheme("light"));
+
+    // Apply saved theme on load
+    applyTheme(currentTheme);
+
+    toggleLeftBtn.addEventListener("click", () => app.classList.toggle("left-hidden"));
+    oneThirdPauseBtn.addEventListener("click", () => {
+      const exerciseSeconds = (parseInt(exerciseMinInput.value, 10) || 0) * 60 + (parseInt(exerciseSecInput.value, 10) || 0);
+      const pauseSeconds = Math.max(1, Math.round(exerciseSeconds / 3));
+      pauseMinInput.value = Math.floor(pauseSeconds / 60); pauseSecInput.value = pauseSeconds % 60; formatPresetInput.value = "custom"; saveSettings(); updateDiagnostics();
+    });
+    loadYoutubeBtn.addEventListener("click", loadYoutube);
+    youtubeUrlInput.addEventListener("change", () => { localStorage.setItem("youtubeUrl", youtubeUrlInput.value.trim()); saveSettings(); });
+    musicBtn.addEventListener("click", () => isMusicPlaying ? pauseMusic() : playMusic());
+    generateBtn.addEventListener("click", generateSession);
+    reloadExercisesBtn.addEventListener("click", loadExerciseLibrary);
+    sessionBtn.addEventListener("click", handleSessionButton);
+    resetBtn.addEventListener("click", closeSession);
+
+    updateSessionMeta(); updateSummary(); updateMusicButton();
+    loadExerciseLibrary();
+  </script>
+</body>
+</html>
