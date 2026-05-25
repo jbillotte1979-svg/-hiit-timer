@@ -1306,53 +1306,49 @@
     }
 
     function playBeep(type) {
-      const ctx = getAudioCtx();
+      try {
+        const ctx = getAudioCtx();
+        if (ctx.state === "suspended") { ctx.resume(); }
 
-      function singleTone(freq, duration) {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(1.5, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + duration);
-      }
+        const now = ctx.currentTime;
 
-      function doubleTone(freq, duration) {
-        const gap = 0.08;
-        for (let i = 0; i < 2; i++) {
+        function tone(freq, startOffset, duration) {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.connect(gain);
           gain.connect(ctx.destination);
+          osc.type = "sine";
           osc.frequency.value = freq;
-          const t = ctx.currentTime + i * (duration + gap);
-          gain.gain.setValueAtTime(1.5, t);
+          const t = now + startOffset;
+          gain.gain.setValueAtTime(0, t);
+          gain.gain.linearRampToValueAtTime(1.5, t + 0.01);
           gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
           osc.start(t);
-          osc.stop(t + duration);
+          osc.stop(t + duration + 0.01);
         }
-      }
 
-      if (type === "countdown") {
-        singleTone(880, 0.12);      // 1 bip court : 3, 2, 1
-      } else if (type === "go") {
-        doubleTone(1200, 0.15);     // 2 bips aigus : GO
-      } else if (type === "stop") {
-        doubleTone(700, 0.15);      // 2 bips graves : Stop
-      }
+        if (type === "countdown") {
+          tone(880, 0, 0.12);
+        } else if (type === "go") {
+          tone(1200, 0,    0.15);
+          tone(1200, 0.23, 0.15);
+        } else if (type === "stop") {
+          tone(700, 0,    0.15);
+          tone(700, 0.23, 0.15);
+        }
+      } catch(e) { console.warn("playBeep error", e); }
     }
 
     function runInitialCountdown() {
       const sequence = ["3", "2", "1", "GO"];
       let index = 0;
       showTransition(sequence[index]); phaseLabel.textContent = "Début de séance";
+      playBeep("countdown"); // bip sur le "3"
       const countdown = setInterval(() => {
         index++;
         if (index >= sequence.length) { clearInterval(countdown); beginExercise(); return; }
         showTransition(sequence[index]);
+        playBeep(sequence[index] === "GO" ? "go" : "countdown");
       }, 800);
     }
     function beginExercise() {
@@ -1370,8 +1366,13 @@
     function startTimer() {
       clearInterval(timerInterval);
       timerInterval = setInterval(() => {
-        remainingSeconds--; tickDisplay();
-        if (remainingSeconds <= 0) { clearInterval(timerInterval); handlePhaseEnd(); }
+        remainingSeconds--;
+        tickDisplay();
+        if (remainingSeconds <= 0) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+          if (state === "running") handlePhaseEnd();
+        }
       }, 1000);
     }
     function tickDisplay() { timerEl.textContent = formatTime(Math.max(remainingSeconds, 0)); updateDisplayColor(); updateSessionMeta(); }
@@ -1383,23 +1384,23 @@
         const isLastExerciseOfRound = currentExercise >= settings.exercises;
         const isLastRound = currentRound >= settings.rounds;
         if (isLastExerciseOfRound && isLastRound) { finishSession(); return; }
-        showTemporaryTransition("Stop", () => beginPause(isLastExerciseOfRound));
+        showTemporaryTransition("Stop", "stop", () => beginPause(isLastExerciseOfRound));
         return;
       }
       if (phase === "pause") {
         currentExercise++;
-        showTemporaryTransition("Go", () => beginExercise());
+        showTemporaryTransition("Go", "go", () => beginExercise());
         return;
       }
       if (phase === "roundPause") {
         completedRounds++; updateSummary(); currentRound++; currentExercise = 1;
-        showTemporaryTransition("Go", () => beginExercise());
+        showTemporaryTransition("Go", "go", () => beginExercise());
       }
     }
-    function showTemporaryTransition(text, callback) { showTransition(text); setTimeout(callback, 850); }
+    function showTemporaryTransition(text, beepType, callback) { showTransition(text); playBeep(beepType); setTimeout(callback, 850); }
     function pauseSession() { if (state !== "running") return; state = "paused"; clearInterval(timerInterval); sessionBtn.textContent = "REPRENDRE"; phaseLabel.textContent = "Séance en pause"; }
     function resumeSession() { if (state !== "paused") return; state = "running"; sessionBtn.textContent = "PAUSE"; phaseLabel.textContent = phase === "exercise" ? "Exercice" : phase === "roundPause" ? "Pause entre rounds" : "Pause"; startTimer(); }
-    function finishSession() { state = "done"; clearInterval(timerInterval); completedRounds = getSettings().rounds; updateSummary(); phaseLabel.textContent = "Séance terminée"; showTransition("Stop"); sessionBtn.textContent = "GO"; updateSessionMeta(); updateCurrentExerciseDisplay(); }
+    function finishSession() { state = "done"; clearInterval(timerInterval); completedRounds = getSettings().rounds; updateSummary(); phaseLabel.textContent = "Séance terminée"; showTransition("Stop"); playBeep("stop"); sessionBtn.textContent = "GO"; updateSessionMeta(); updateCurrentExerciseDisplay(); }
     function closeSession() {
       state = "idle"; phase = "exercise"; currentRound = 1; currentExercise = 1; remainingSeconds = 0; clearInterval(timerInterval);
       phaseLabel.textContent = "Prêt"; timerEl.textContent = "00:00"; timerEl.classList.remove("orange", "red"); showTimer(); sessionBtn.textContent = "GO"; resetSummary(); updateSessionMeta(); updateCurrentExerciseDisplay();
