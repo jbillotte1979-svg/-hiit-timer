@@ -529,7 +529,7 @@
                 <input id="rounds" type="number" min="1" max="10" value="3" />
               </label>
               <label for="exercises">Exercices / round
-                <input id="exercises" type="number" min="1" max="10" value="5" />
+                <input id="exercises" type="number" min="1" max="20" value="5" />
               </label>
             </div>
 
@@ -960,7 +960,7 @@
 
     function getSettings() {
       const rounds = clamp(parseInt(roundsInput.value, 10) || 1, 1, 10);
-      const exercises = clamp(parseInt(exercisesInput.value, 10) || 1, 1, 10);
+      const exercises = clamp(parseInt(exercisesInput.value, 10) || 1, 1, 20);
       const exerciseSeconds = (parseInt(exerciseMinInput.value, 10) || 0) * 60 + (parseInt(exerciseSecInput.value, 10) || 0);
       const pauseSeconds = (parseInt(pauseMinInput.value, 10) || 0) * 60 + (parseInt(pauseSecInput.value, 10) || 0);
       const roundPauseSeconds = (parseInt(roundPauseMinInput.value, 10) || 0) * 60 + (parseInt(roundPauseSecInput.value, 10) || 0);
@@ -1298,6 +1298,53 @@
       currentRound = 1; currentExercise = 1; phase = "exercise"; state = "starting"; remainingSeconds = settings.exerciseSeconds;
       resetSummary(); updateSessionMeta(); updateCurrentExerciseDisplay(); sessionBtn.textContent = "PAUSE"; playMusic(); runInitialCountdown();
     }
+    // ── Sons de transition ──
+    let audioCtx = null;
+    function getAudioCtx() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      return audioCtx;
+    }
+
+    function playBeep(type) {
+      const ctx = getAudioCtx();
+
+      function singleTone(freq, duration) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(1.5, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + duration);
+      }
+
+      function doubleTone(freq, duration) {
+        const gap = 0.08;
+        for (let i = 0; i < 2; i++) {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = freq;
+          const t = ctx.currentTime + i * (duration + gap);
+          gain.gain.setValueAtTime(1.5, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+          osc.start(t);
+          osc.stop(t + duration);
+        }
+      }
+
+      if (type === "countdown") {
+        singleTone(880, 0.12);      // 1 bip court : 3, 2, 1
+      } else if (type === "go") {
+        doubleTone(1200, 0.15);     // 2 bips aigus : GO
+      } else if (type === "stop") {
+        doubleTone(700, 0.15);      // 2 bips graves : Stop
+      }
+    }
+
     function runInitialCountdown() {
       const sequence = ["3", "2", "1", "GO"];
       let index = 0;
